@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Royal Game">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Royal Game</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #0f172a;
+    color: white;
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior: none;
+  }
+  #app { height: 100dvh; height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  header {
+    padding: env(safe-area-inset-top) 16px 12px;
+    padding-top: max(env(safe-area-inset-top), 16px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: transparent;
+    z-index: 10;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: #fbbf24;
+  }
+  header h1 .crown { margin-right: 4px; }
+  .icon-btn {
+    background: rgba(255,255,255,0.08);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-btn:active { background: rgba(255,255,255,0.15); }
+
+  /* Deck selection */
+  #deck-selector {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 24px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .deck-intro {
+    text-align: center;
+    margin: 20px 0 24px;
+    color: rgba(255,255,255,0.7);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .deck-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .deck-card {
+    background: var(--deck-color);
+    border-radius: 20px;
+    padding: 22px 20px;
+    cursor: pointer;
+    transition: transform 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    color: white;
+  }
+  .deck-card:active { transform: scale(0.97); }
+  .deck-icon {
+    font-size: 36px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  }
+  .deck-info { flex: 1; }
+  .deck-name { font-size: 19px; font-weight: 800; line-height: 1.2; }
+  .deck-sub { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+  .deck-count {
+    background: rgba(0,0,0,0.18);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* Card view */
+  #card-view {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    padding: 0 16px 16px;
+    padding-bottom: max(env(safe-area-inset-bottom), 16px);
+  }
+  #card-view.active { display: flex; }
+
+  .progress-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--card-color, #fbbf24);
+    transition: width 0.3s;
+  }
+
+  .card-stack {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 480px;
+    height: 100%;
+    background: var(--card-color, #fbbf24);
+    border-radius: 28px;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    position: relative;
+    color: white;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  .card.swipe-left { transform: translateX(-110%) rotate(-15deg); opacity: 0; }
+  .card.swipe-right { transform: translateX(110%) rotate(15deg); opacity: 0; }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.8;
+    margin-bottom: 16px;
+  }
+  .card-text {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.25;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .card-num {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    font-size: 14px;
+    font-weight: 700;
+    opacity: 0.7;
+  }
+  .card-deck-name {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+    font-size: 14px;
+    font-weight: 700;
+    opacity: 0.7;
+  }
+
+  /* Bottom controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    justify-content: center;
+  }
+  .control-btn {
+    flex: 1;
+    max-width: 200px;
+    padding: 16px;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .control-btn:active { background: rgba(255,255,255,0.2); }
+  .control-btn.primary { background: white; color: #0f172a; }
+  .control-btn.primary:active { background: rgba(255,255,255,0.85); }
+
+  .hint {
+    text-align: center;
+    color: rgba(255,255,255,0.4);
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  /* Empty deck end */
+  .end-card {
+    text-align: center;
+    padding: 40px 24px;
+  }
+  .end-card h2 { font-size: 32px; margin: 0 0 12px; }
+  .end-card p { font-size: 16px; opacity: 0.8; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1><span class="crown">👑</span>Royal Game</h1>
+    <button id="back-btn" class="icon-btn" style="display:none;" onclick="backToDecks()">×</button>
+  </header>
+
+  <div id="deck-selector">
+    <div class="deck-intro">Choisis ton deck. Tape une carte pour passer à la suivante.</div>
+    <div id="deck-list" class="deck-list"></div>
+  </div>
+
+  <div id="card-view">
+    <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+    <div id="card-stack" class="card-stack"></div>
+    <div class="controls">
+      <button class="control-btn" onclick="prevCard()">← Précédent</button>
+      <button class="control-btn primary" onclick="nextCard()">Suivant →</button>
+    </div>
+    <div class="hint">Tape la carte ou utilise les boutons</div>
+  </div>
+
+</div>
+
+<script>
+let DATA = null;
+let currentDeck = null;
+let currentIndex = 0;
+let shuffledIndices = [];
+
+async function load() {
+  const res = await fetch('cards.json?v=' + Date.now());
+  DATA = await res.json();
+  renderDeckList();
+}
+
+function renderDeckList() {
+  const list = document.getElementById('deck-list');
+  list.innerHTML = '';
+  DATA.decks.forEach(deck => {
+    const el = document.createElement('div');
+    el.className = 'deck-card';
+    el.style.setProperty('--deck-color', deck.color);
+    el.innerHTML = `
+      <div class="deck-icon">${deck.icon}</div>
+      <div class="deck-info">
+        <div class="deck-name">${deck.name}</div>
+        <div class="deck-sub">${deck.subtitle}</div>
+      </div>
+      <div class="deck-count">${deck.cards.length}</div>
+    `;
+    el.addEventListener('click', () => openDeck(deck));
+    list.appendChild(el);
+  });
+}
+
+function openDeck(deck) {
+  currentDeck = deck;
+  shuffledIndices = shuffle([...Array(deck.cards.length).keys()]);
+  currentIndex = 0;
+  document.documentElement.style.setProperty('--card-color', deck.color);
+  document.getElementById('deck-selector').style.display = 'none';
+  document.getElementById('card-view').classList.add('active');
+  document.getElementById('back-btn').style.display = 'flex';
+  renderCard();
+}
+
+function backToDecks() {
+  document.getElementById('card-view').classList.remove('active');
+  document.getElementById('deck-selector').style.display = 'block';
+  document.getElementById('back-btn').style.display = 'none';
+  document.getElementById('card-stack').innerHTML = '';
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function renderCard() {
+  const stack = document.getElementById('card-stack');
+  const total = currentDeck.cards.length;
+  const progress = ((currentIndex) / total) * 100;
+  document.getElementById('progress-fill').style.width = progress + '%';
+
+  if (currentIndex >= total) {
+    stack.innerHTML = `
+      <div class="card">
+        <div class="end-card">
+          <h2>👑</h2>
+          <h2>Fin du deck</h2>
+          <p>Tu as parcouru les ${total} cartes.<br>Tu peux retourner au menu ou reshuffler.</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const cardIndex = shuffledIndices[currentIndex];
+  const text = currentDeck.cards[cardIndex];
+  stack.innerHTML = `
+    <div class="card" id="current-card">
+      <div class="card-deck-name">${currentDeck.name}</div>
+      <div class="card-num">${currentIndex + 1} / ${total}</div>
+      <div class="card-label">${currentDeck.icon} ${currentDeck.format === 'pyfd' ? 'Put a finger down' : 'Question'}</div>
+      <div class="card-text">${escapeHtml(text)}</div>
+    </div>
+  `;
+  setupCardTap();
+}
+
+function setupCardTap() {
+  const card = document.getElementById('current-card');
+  if (!card) return;
+  let startX = 0, dx = 0, isDragging = false;
+
+  card.addEventListener('click', (e) => {
+    if (Math.abs(dx) < 5) nextCard();
+  });
+
+  card.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+    isDragging = true;
+    dx = 0;
+  }, { passive: true });
+
+  card.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    dx = e.touches[0].clientX - startX;
+    card.style.transform = `translateX(${dx}px) rotate(${dx * 0.05}deg)`;
+  }, { passive: true });
+
+  card.addEventListener('touchend', () => {
+    isDragging = false;
+    if (dx > 80) {
+      card.classList.add('swipe-right');
+      setTimeout(() => prevCard(), 250);
+    } else if (dx < -80) {
+      card.classList.add('swipe-left');
+      setTimeout(() => nextCard(), 250);
+    } else {
+      card.style.transform = '';
+    }
+  });
+}
+
+function nextCard() {
+  currentIndex++;
+  if (currentIndex > currentDeck.cards.length) currentIndex = currentDeck.cards.length;
+  renderCard();
+}
+
+function prevCard() {
+  currentIndex = Math.max(0, currentIndex - 1);
+  renderCard();
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('card-view').classList.contains('active')) {
+    if (e.key === 'ArrowRight' || e.key === ' ') nextCard();
+    if (e.key === 'ArrowLeft') prevCard();
+    if (e.key === 'Escape') backToDecks();
+  }
+});
+
+load();
+</script>
+</body>
+</html>
